@@ -1,4 +1,4 @@
-# Genomic analysis using sketching techniques
+# Genomic Proximities using Set Similarity Measures
 
 
 ## Setup
@@ -12,7 +12,7 @@ Requirements:
 
 Checkout
 ```
-git clone --recurse-submodules https://github.com/jonasschultemattler/nanocourse
+git clone --recurse-submodules https://github.com/jonsmcode/setproximity
 ```
 
 See https://docs.seqan.de/seqan3/main_user/setup.html for compiler setup. Compile with
