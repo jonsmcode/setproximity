@@ -4,12 +4,6 @@
 #include "hashfunctions.hpp"
 #include "util.hpp"
 
-const uint8_t k = 31;
-
-
-struct my_traits:seqan3::sequence_file_input_default_traits_dna {
-    using sequence_alphabet = seqan3::dna4;
-};
 
 static size_t set_intersection_size(const std::unordered_set<uint64_t> &set_a,
                                     const std::unordered_set<uint64_t> &set_b)
@@ -35,17 +29,20 @@ static size_t set_union_size(const std::unordered_set<uint64_t> &set_a,
 }
 
 
-void fill_ht(const std::filesystem::path &filepath,
-             std::unordered_set<uint64_t> &kmerset, const double percentage)
+std::vector<std::unordered_set<uint64_t>> fill_hts(const std::filesystem::path &filepath, const double percentage)
 {
+    std::vector<std::unordered_set<uint64_t>> kmersets;
     auto stream = seqan3::sequence_file_input<my_traits>{filepath};
     auto kmer_view = seqan3::views::kmer_hash(seqan3::ungapped{k});
     for(auto & record : stream) {
+        std::unordered_set<uint64_t> kmerset;
         for(auto && kmer : record.sequence() | kmer_view) {
             if((double) std::rand()/RAND_MAX <= percentage)
                 kmerset.insert(kmer);
         }
+        kmersets.push_back(kmerset);
     }
+    return kmersets;
 }
 
 
@@ -56,16 +53,12 @@ double jaccard_similarity(const std::unordered_set<uint64_t> &kmerset_a,
 }
 
 
-void jaccard_similarities(const std::vector<std::filesystem::path> &filepaths, double matrix[n][n], const double percentage)
+void jaccard_similarities(std::vector<std::unordered_set<uint64_t>> &kmersets, double* matrix, const size_t n)
 {
     for(int i = 0; i < n; i++) {
-        matrix[i][i] = 1;
-        std::unordered_set<uint64_t> kmerset_i;
-        fill_ht(filepaths[i], kmerset_i, percentage);
+        matrix[i*(n+1)] = 1;
         for(int j = i+1; j < n; j++) {
-            std::unordered_set<uint64_t> kmerset_j;
-            fill_ht(filepaths[j], kmerset_j, percentage);
-            matrix[i][j] = matrix[j][i] = jaccard_similarity(kmerset_i, kmerset_j);
+            matrix[i*n+j] = matrix[j*n+i] = jaccard_similarity(kmersets[i], kmersets[j]);
         }
     }
 }
@@ -73,13 +66,21 @@ void jaccard_similarities(const std::vector<std::filesystem::path> &filepaths, d
 
 int main(int argc, char** argv)
 {
-    if(argc != 2) {
-        std::cout << "usage: provide sample probability in [0,1]\n";
+    if(argc != 3) {
+        std::cout << "usage: provide file and sample probability in [0,1]\n";
         return -1;
     }
-    double percentage = std::stod(argv[1]);
-    double matrix[n][n];
 
-    jaccard_similarities(files, matrix, percentage);
-    print_matrix(matrix);
+    std::filesystem::path filepath = argv[1];
+    double percentage = std::stod(argv[2]);
+
+    std::vector<std::unordered_set<uint64_t>> kmersets = fill_hts(filepath, percentage);
+
+    const size_t n = kmersets.size();
+    double* matrix = new double[n*n];
+    jaccard_similarities(kmersets, matrix, n);
+
+    print_matrix(matrix, n);
+
+    delete[] matrix;
 }

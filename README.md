@@ -1,4 +1,4 @@
-# Genomic Proximities using Set Similarity Measures
+# Genomic Similarity via Set Proximity Measures
 
 
 ## Setup

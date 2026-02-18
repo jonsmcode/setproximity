@@ -1,15 +1,16 @@
-const std::vector<std::filesystem::path> files = {
-        "data/ecoli1_k31_ust.fa.gz",
-        "data/ecoli2_k31_ust.fa.gz",
-        "data/ecoli4_k31_ust.fa.gz",
-        "data/salmonella_100_k31_ust.fa.gz"};
-const int n = 4;
+const uint8_t k = 15;
+const uint64_t prime = (1ULL << 61) - 1u;
+const int seed = 1;
+
+struct my_traits:seqan3::sequence_file_input_default_traits_dna {
+    using sequence_alphabet = seqan3::dna4;
+};
 
 
-void print_matrix(double matrix[n][n]) {
-    for(int i = 0; i < n; i++) {
-        for(int j = 0; j < n; j++) {
-            std::cout << matrix[i][j] << " ";
+void print_matrix(const double* matrix, const size_t n) {
+    for(size_t i = 0; i < n; i++) {
+        for(size_t j = 0; j < n; j++) {
+            std::cout << matrix[i*n+j] << " ";
         }
         std::cout << '\n';
     }

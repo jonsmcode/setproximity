@@ -4,11 +4,6 @@
 #include "hashfunctions.hpp"
 #include "util.hpp"
 
-const uint8_t k = 31;
-
-struct my_traits:seqan3::sequence_file_input_default_traits_dna {
-    using sequence_alphabet = seqan3::dna4;
-};
 
 static size_t set_intersection_size(const std::unordered_set<uint64_t> &set_a,
                                     const std::unordered_set<uint64_t> &set_b)
@@ -34,16 +29,18 @@ static size_t set_union_size(const std::unordered_set<uint64_t> &set_a,
 }
 
 
-void fill_ht(const std::filesystem::path &filepath,
-             std::unordered_set<uint64_t> &kmerset)
+void fill_hts(const std::filesystem::path &filepath,
+            std::vector<std::unordered_set<uint64_t>> &kmersets)
 {
     // stream over k-mers in DNA file
     auto stream = seqan3::sequence_file_input<my_traits>{filepath};
     auto kmer_view = seqan3::views::kmer_hash(seqan3::ungapped{k});
     for(auto & record : stream) {
+        std::unordered_set<uint64_t> kmerset;
         for(auto && kmer : record.sequence() | kmer_view) {
             kmerset.insert(kmer);
         }
+        kmersets.push_back(kmerset);
     }
 }
 
@@ -54,16 +51,12 @@ double jaccard_similarity(const std::unordered_set<uint64_t> &kmerset_a,
 }
 
 
-void jaccard_similarities(const std::vector<std::filesystem::path> &filepaths, double matrix[n][n])
+void jaccard_similarities(std::vector<std::unordered_set<uint64_t>> &kmersets, double* matrix, size_t n)
 {
     for(int i = 0; i < n; i++) {
-        matrix[i][i] = 1;
-        std::unordered_set<uint64_t> kmerset_i;
-        fill_ht(filepaths[i], kmerset_i);
+        matrix[i*(n+1)] = 1;
         for(int j = i+1; j < n; j++) {
-            std::unordered_set<uint64_t> kmerset_j;
-            fill_ht(filepaths[j], kmerset_j);
-            matrix[i][j] = matrix[j][i] = jaccard_similarity(kmerset_i, kmerset_j);
+            matrix[i*n+j] = matrix[j*n+i] = jaccard_similarity(kmersets[i], kmersets[j]);
         }
     }
 }
@@ -71,8 +64,16 @@ void jaccard_similarities(const std::vector<std::filesystem::path> &filepaths, d
 
 int main(int argc, char** argv)
 {
-    double matrix[n][n];
+    std::filesystem::path filepath = argv[1];
 
-    jaccard_similarities(files, matrix);
-    print_matrix(matrix);
+    std::vector<std::unordered_set<uint64_t>> kmersets;
+    fill_hts(filepath, kmersets);
+
+    const size_t n = kmersets.size();
+    double* matrix = new double[n*n];
+    jaccard_similarities(kmersets, matrix, n);
+
+    print_matrix(matrix, n);
+
+    delete[] matrix;
 }
